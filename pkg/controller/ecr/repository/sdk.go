@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	svcapitypes "github.com/aws/aws-controllers-k8s/services/ecr/apis/v1alpha1"
+	"github.com/muvaf/test-generated-aws/apis/ecr/v1alpha1"
 )
 
 // Hack to avoid import errors during build...
@@ -37,7 +38,65 @@ var (
 	_ = &ackerr.NotFound
 )
 
-// sdkFind returns SDK-specific information about a supplied resource
+// GenerateCreateRepositoryInput returns a CreateRepositoryInput object.
+func GenerateCreateRepositoryInput(cr *v1alpha1.Repository) *svcsdk.CreateRepositoryInput {
+	res := &svcsdk.CreateRepositoryInput{}
+
+	if cr.Spec.ForProvider.EncryptionConfiguration != nil {
+		f0 := &svcsdk.EncryptionConfiguration{}
+		if cr.Spec.ForProvider.EncryptionConfiguration.EncryptionType != nil {
+			f0.SetEncryptionType(*cr.Spec.ForProvider.EncryptionConfiguration.EncryptionType)
+		}
+		if cr.Spec.ForProvider.EncryptionConfiguration.KMSKey != nil {
+			f0.SetKmsKey(*cr.Spec.ForProvider.EncryptionConfiguration.KMSKey)
+		}
+		res.SetEncryptionConfiguration(f0)
+	}
+	if cr.Spec.ForProvider.ImageScanningConfiguration != nil {
+		f1 := &svcsdk.ImageScanningConfiguration{}
+		if cr.Spec.ForProvider.ImageScanningConfiguration.ScanOnPush != nil {
+			f1.SetScanOnPush(*cr.Spec.ForProvider.ImageScanningConfiguration.ScanOnPush)
+		}
+		res.SetImageScanningConfiguration(f1)
+	}
+	if cr.Spec.ForProvider.ImageTagMutability != nil {
+		res.SetImageTagMutability(*cr.Spec.ForProvider.ImageTagMutability)
+	}
+	if cr.Spec.ForProvider.RepositoryName != nil {
+		res.SetRepositoryName(*cr.Spec.ForProvider.RepositoryName)
+	}
+	if cr.Spec.ForProvider.Tags != nil {
+		f4 := []*svcsdk.Tag{}
+		for _, f4iter := range cr.Spec.ForProvider.Tags {
+			f4elem := &svcsdk.Tag{}
+			if f4iter.Key != nil {
+				f4elem.SetKey(*f4iter.Key)
+			}
+			if f4iter.Value != nil {
+				f4elem.SetValue(*f4iter.Value)
+			}
+			f4 = append(f4, f4elem)
+		}
+		res.SetTags(f4)
+	}
+
+	return res
+}
+
+// newDeleteRequestPayload returns an SDK-specific struct for the HTTP request
+// payload of the Delete API call for the resource
+func GenerateDeleteRepositoryInput(cr *v1alpha1.Repository) *svcsdk.DeleteRepositoryInput {
+	res := &svcsdk.DeleteRepositoryInput{}
+
+	if cr.Status.AtProvider.RegistryID != nil {
+		res.SetRegistryId(*cr.Status.AtProvider.RegistryID)
+	}
+	if cr.Spec.ForProvider.RepositoryName != nil {
+		res.SetRepositoryName(*cr.Spec.ForProvider.RepositoryName)
+	}
+
+	return res
+}// sdkFind returns SDK-specific information about a supplied resource
 func (rm *resourceManager) sdkFind(
 	ctx context.Context,
 	r *resource,
@@ -119,8 +178,8 @@ func (rm *resourceManager) newListRequestPayload(
 ) (*svcsdk.DescribeRepositoriesInput, error) {
 	res := &svcsdk.DescribeRepositoriesInput{}
 
-	if r.ko.Status.RegistryID != nil {
-		res.SetRegistryId(*r.ko.Status.RegistryID)
+	if r.ko.Status.AtProvider.RegistryID != nil {
+		res.SetRegistryId(*r.ko.Status.AtProvider.RegistryID)
 	}
 
 	return res, nil
@@ -167,32 +226,32 @@ func (rm *resourceManager) newCreateRequestPayload(
 ) (*svcsdk.CreateRepositoryInput, error) {
 	res := &svcsdk.CreateRepositoryInput{}
 
-	if r.ko.Spec.EncryptionConfiguration != nil {
+	if r.ko.Spec.ForProvider.EncryptionConfiguration != nil {
 		f0 := &svcsdk.EncryptionConfiguration{}
-		if r.ko.Spec.EncryptionConfiguration.EncryptionType != nil {
-			f0.SetEncryptionType(*r.ko.Spec.EncryptionConfiguration.EncryptionType)
+		if r.ko.Spec.ForProvider.EncryptionConfiguration.EncryptionType != nil {
+			f0.SetEncryptionType(*r.ko.Spec.ForProvider.EncryptionConfiguration.EncryptionType)
 		}
-		if r.ko.Spec.EncryptionConfiguration.KMSKey != nil {
-			f0.SetKmsKey(*r.ko.Spec.EncryptionConfiguration.KMSKey)
+		if r.ko.Spec.ForProvider.EncryptionConfiguration.KMSKey != nil {
+			f0.SetKmsKey(*r.ko.Spec.ForProvider.EncryptionConfiguration.KMSKey)
 		}
 		res.SetEncryptionConfiguration(f0)
 	}
-	if r.ko.Spec.ImageScanningConfiguration != nil {
+	if r.ko.Spec.ForProvider.ImageScanningConfiguration != nil {
 		f1 := &svcsdk.ImageScanningConfiguration{}
-		if r.ko.Spec.ImageScanningConfiguration.ScanOnPush != nil {
-			f1.SetScanOnPush(*r.ko.Spec.ImageScanningConfiguration.ScanOnPush)
+		if r.ko.Spec.ForProvider.ImageScanningConfiguration.ScanOnPush != nil {
+			f1.SetScanOnPush(*r.ko.Spec.ForProvider.ImageScanningConfiguration.ScanOnPush)
 		}
 		res.SetImageScanningConfiguration(f1)
 	}
-	if r.ko.Spec.ImageTagMutability != nil {
-		res.SetImageTagMutability(*r.ko.Spec.ImageTagMutability)
+	if r.ko.Spec.ForProvider.ImageTagMutability != nil {
+		res.SetImageTagMutability(*r.ko.Spec.ForProvider.ImageTagMutability)
 	}
-	if r.ko.Spec.RepositoryName != nil {
-		res.SetRepositoryName(*r.ko.Spec.RepositoryName)
+	if r.ko.Spec.ForProvider.RepositoryName != nil {
+		res.SetRepositoryName(*r.ko.Spec.ForProvider.RepositoryName)
 	}
-	if r.ko.Spec.Tags != nil {
+	if r.ko.Spec.ForProvider.Tags != nil {
 		f4 := []*svcsdk.Tag{}
-		for _, f4iter := range r.ko.Spec.Tags {
+		for _, f4iter := range r.ko.Spec.ForProvider.Tags {
 			f4elem := &svcsdk.Tag{}
 			if f4iter.Key != nil {
 				f4elem.SetKey(*f4iter.Key)
@@ -238,11 +297,11 @@ func (rm *resourceManager) newDeleteRequestPayload(
 ) (*svcsdk.DeleteRepositoryInput, error) {
 	res := &svcsdk.DeleteRepositoryInput{}
 
-	if r.ko.Status.RegistryID != nil {
-		res.SetRegistryId(*r.ko.Status.RegistryID)
+	if r.ko.Status.AtProvider.RegistryID != nil {
+		res.SetRegistryId(*r.ko.Status.AtProvider.RegistryID)
 	}
-	if r.ko.Spec.RepositoryName != nil {
-		res.SetRepositoryName(*r.ko.Spec.RepositoryName)
+	if r.ko.Spec.ForProvider.RepositoryName != nil {
+		res.SetRepositoryName(*r.ko.Spec.ForProvider.RepositoryName)
 	}
 
 	return res, nil

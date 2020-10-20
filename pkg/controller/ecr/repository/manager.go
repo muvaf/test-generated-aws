@@ -19,6 +19,7 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -26,13 +27,19 @@ import (
 	cpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	awsclients "github.com/crossplane/provider-aws/pkg/clients"
+	svcsdkapi "github.com/aws/aws-sdk-go/service/ecr/ecriface"
+	svcapi "github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/aws/aws-sdk-go/aws/session"
 
 	"github.com/muvaf/test-generated-aws/apis/ecr/v1alpha1"
+	awsclient "github.com/muvaf/test-generated-aws/pkg/client"
 )
 
 const (
 	errUnexpectedObject = "managed resource is not an repository resource"
+
+	errCreateSession = "cannot create a new session"
+	errCreate = "cannot create Repository in AWS"
 )
 
 // SetupRepository adds a controller that reconciles Repository.
@@ -59,16 +66,17 @@ func (c *connector) Connect(ctx context.Context, mg cpresource.Managed) (managed
 	if !ok {
 		return nil, errors.New(errUnexpectedObject)
 	}
-	cfg, err := awsclients.GetConfig(ctx, c.kube, mg, cr.Spec.ForProvider.Region)
+	cfg, err := awsclient.GetConfig(ctx, c.kube, mg, cr.Spec.ForProvider.Region)
 	if err != nil {
 		return nil, err
 	}
-	return &external{client: awsecr.New(*cfg), kube: c.kube}, nil
+	sess, err := session.NewSession(cfg)
+  return &external{client: svcapi.New(sess), kube: c.kube}, errors.Wrap(err, errCreateSession)
 }
 
 type external struct {
 	kube   client.Client
-	client ecr.RepositoryClient
+	client svcsdkapi.ECRAPI
 }
 
 func (e *external) Observe(ctx context.Context, mg cpresource.Managed) (managed.ExternalObservation, error) {
@@ -91,6 +99,23 @@ func (e *external) Create(ctx context.Context, mg cpresource.Managed) (managed.E
 		return managed.ExternalCreation{}, errors.New(errUnexpectedObject)
 	}
 	cr.Status.SetConditions(runtimev1alpha1.Creating())
+	input := GenerateCreateRepositoryInput(cr)
+  
+  	resp, err := e.client.CreateRepositoryWithContext(ctx, input)
+  	if err != nil {
+  	  return managed.ExternalCreation{}, errors.Wrap(err, errCreate)
+  	}
+  
+	if resp.Repository.CreatedAt != nil {
+		cr.Status.AtProvider.CreatedAt = &metav1.Time{*resp.Repository.CreatedAt}
+	}
+	if resp.Repository.RegistryId != nil {
+		cr.Status.AtProvider.RegistryID = resp.Repository.RegistryId
+	}
+	if resp.Repository.RepositoryUri != nil {
+		cr.Status.AtProvider.RepositoryURI = resp.Repository.RepositoryUri
+	}
+
 	return managed.ExternalCreation{}, nil
 }
 
@@ -109,5 +134,8 @@ func (e *external) Delete(ctx context.Context, mg cpresource.Managed) error {
 		return errors.New(errUnexpectedObject)
 	}
 	cr.Status.SetConditions(runtimev1alpha1.Deleting())
-	return nil
+  	input := GenerateDeleteRepositoryInput(cr)
+  	_, err := e.client.DeleteRepositoryWithContext(ctx, input)
+  	// TODO(muvaf): Ignore NotFound errors here.
+  	return errors.Wrap(err, errCreate)
 }
