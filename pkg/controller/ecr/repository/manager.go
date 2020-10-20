@@ -17,6 +17,7 @@ package repository
 
 import (
 	"context"
+	svcapitypes "github.com/aws/aws-controllers-k8s/services/ecr/apis/v1alpha1"
 
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,6 +31,7 @@ import (
 	svcsdkapi "github.com/aws/aws-sdk-go/service/ecr/ecriface"
 	svcapi "github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/aws/aws-sdk-go/aws/session"
+	ackerr "github.com/aws/aws-controllers-k8s/pkg/errors"
 
 	"github.com/muvaf/test-generated-aws/apis/ecr/v1alpha1"
 	awsclient "github.com/muvaf/test-generated-aws/pkg/client"
@@ -86,10 +88,75 @@ func (e *external) Observe(ctx context.Context, mg cpresource.Managed) (managed.
 	}
 
 	cr.SetConditions(runtimev1alpha1.Available())
+	input := GenerateDescribeRepositoriesInput(cr)
+	// TODO(muvaf): Generated conversion code has logic about the input, like if(len...)
+	// and has a return statement we can't control here in an arbitrary function.
+	// TODO(muvaf): Generated code has an assumption about the module name of the type (svcapitypes)
+	// but that doesn't always hold true.
+
+	resp, err := e.client.DescribeRepositoriesWithContext(ctx, input)
+	if err != nil {
+		if awsErr, ok := ackerr.AWSError(err); ok && awsErr.Code() == "UNKNOWN" {
+			return managed.ExternalObservation{ResourceExists: false}, nil
+		}
+		return managed.ExternalObservation{}, err
+	}
+
+	if len(resp.Repositories) == 0 {
+		return nil, ackerr.NotFound
+	}
+	found := false
+	for _, elem := range resp.Repositories {
+		if elem.CreatedAt != nil {
+			cr.Status.AtProvider.CreatedAt = &metav1.Time{*elem.CreatedAt}
+		}
+		if elem.EncryptionConfiguration != nil {
+			f1 := &svcapitypes.EncryptionConfiguration{}
+			if elem.EncryptionConfiguration.EncryptionType != nil {
+				f1.EncryptionType = elem.EncryptionConfiguration.EncryptionType
+			}
+			if elem.EncryptionConfiguration.KmsKey != nil {
+				f1.KMSKey = elem.EncryptionConfiguration.KmsKey
+			}
+			cr.Spec.ForProvider.EncryptionConfiguration = f1
+		}
+		if elem.ImageScanningConfiguration != nil {
+			f2 := &svcapitypes.ImageScanningConfiguration{}
+			if elem.ImageScanningConfiguration.ScanOnPush != nil {
+				f2.ScanOnPush = elem.ImageScanningConfiguration.ScanOnPush
+			}
+			cr.Spec.ForProvider.ImageScanningConfiguration = f2
+		}
+		if elem.ImageTagMutability != nil {
+			cr.Spec.ForProvider.ImageTagMutability = elem.ImageTagMutability
+		}
+		if elem.RegistryId != nil {
+			cr.Status.AtProvider.RegistryID = elem.RegistryId
+		}
+		if elem.RepositoryArn != nil {
+			if cr.Status.ACKResourceMetadata == nil {
+				cr.Status.ACKResourceMetadata = &ackv1alpha1.ResourceMetadata{}
+			}
+			tmpARN := ackv1alpha1.AWSResourceName(*elem.RepositoryArn)
+			cr.Status.ACKResourceMetadata.ARN = &tmpARN
+		}
+		if elem.RepositoryName != nil {
+			cr.Spec.ForProvider.RepositoryName = elem.RepositoryName
+		}
+		if elem.RepositoryUri != nil {
+			cr.Status.AtProvider.RepositoryURI = elem.RepositoryUri
+		}
+		found = true
+		break
+	}
+	if !found {
+		return nil, ackerr.NotFound
+	}
+
 
 	return managed.ExternalObservation{
 		ResourceExists:   true,
-		ResourceUpToDate: false,
+		ResourceUpToDate: true,
 	}, nil
 }
 

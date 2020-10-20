@@ -37,6 +37,16 @@ var (
 	_ = ackv1alpha1.AWSAccountID("")
 	_ = &ackerr.NotFound
 )
+func GenerateDescribeRepositoriesInput(cr *v1alpha1.Repository) *svcsdk.DescribeRepositoriesInput {
+	res := &svcsdk.DescribeRepositoriesInput{}
+
+	if cr.Status.AtProvider.RegistryID != nil {
+		res.SetRegistryId(*cr.Status.AtProvider.RegistryID)
+	}
+
+	return res
+}
+
 
 // GenerateCreateRepositoryInput returns a CreateRepositoryInput object.
 func GenerateCreateRepositoryInput(cr *v1alpha1.Repository) *svcsdk.CreateRepositoryInput {
@@ -124,7 +134,7 @@ func (rm *resourceManager) sdkFind(
 	found := false
 	for _, elem := range resp.Repositories {
 		if elem.CreatedAt != nil {
-			ko.Status.CreatedAt = &metav1.Time{*elem.CreatedAt}
+			ko.Status.AtProvider.CreatedAt = &metav1.Time{*elem.CreatedAt}
 		}
 		if elem.EncryptionConfiguration != nil {
 			f1 := &svcapitypes.EncryptionConfiguration{}
@@ -134,20 +144,20 @@ func (rm *resourceManager) sdkFind(
 			if elem.EncryptionConfiguration.KmsKey != nil {
 				f1.KMSKey = elem.EncryptionConfiguration.KmsKey
 			}
-			ko.Spec.EncryptionConfiguration = f1
+			ko.Spec.ForProvider.EncryptionConfiguration = f1
 		}
 		if elem.ImageScanningConfiguration != nil {
 			f2 := &svcapitypes.ImageScanningConfiguration{}
 			if elem.ImageScanningConfiguration.ScanOnPush != nil {
 				f2.ScanOnPush = elem.ImageScanningConfiguration.ScanOnPush
 			}
-			ko.Spec.ImageScanningConfiguration = f2
+			ko.Spec.ForProvider.ImageScanningConfiguration = f2
 		}
 		if elem.ImageTagMutability != nil {
-			ko.Spec.ImageTagMutability = elem.ImageTagMutability
+			ko.Spec.ForProvider.ImageTagMutability = elem.ImageTagMutability
 		}
 		if elem.RegistryId != nil {
-			ko.Status.RegistryID = elem.RegistryId
+			ko.Status.AtProvider.RegistryID = elem.RegistryId
 		}
 		if elem.RepositoryArn != nil {
 			if ko.Status.ACKResourceMetadata == nil {
@@ -157,10 +167,10 @@ func (rm *resourceManager) sdkFind(
 			ko.Status.ACKResourceMetadata.ARN = &tmpARN
 		}
 		if elem.RepositoryName != nil {
-			ko.Spec.RepositoryName = elem.RepositoryName
+			ko.Spec.ForProvider.RepositoryName = elem.RepositoryName
 		}
 		if elem.RepositoryUri != nil {
-			ko.Status.RepositoryURI = elem.RepositoryUri
+			ko.Status.AtProvider.RepositoryURI = elem.RepositoryUri
 		}
 		found = true
 		break
