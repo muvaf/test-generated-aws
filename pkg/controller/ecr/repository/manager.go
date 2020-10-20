@@ -17,7 +17,6 @@ package repository
 
 import (
 	"context"
-	svcapitypes "github.com/aws/aws-controllers-k8s/services/ecr/apis/v1alpha1"
 
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
