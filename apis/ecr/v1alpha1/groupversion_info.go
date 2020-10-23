@@ -20,12 +20,18 @@ import (
     "sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
+// Package type metadata.
+const (
+	Group   = "ecr.services.k8s.aws"
+	Version = "v1alpha1"
+)
+
 var (
-    // SchemeGroupVersion is the API Group Version used to register the objects
-    SchemeGroupVersion = schema.GroupVersion{Group: "ecr.services.k8s.aws", Version: "v1alpha1"}
+    // GroupVersion is the API Group Version used to register the objects
+    GroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 
     // SchemeBuilder is used to add go types to the GroupVersionKind scheme
-    SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+    SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
     // AddToScheme adds the types in this group-version to the given scheme.
     AddToScheme = SchemeBuilder.AddToScheme

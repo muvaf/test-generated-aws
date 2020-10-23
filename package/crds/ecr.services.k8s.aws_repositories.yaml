@@ -8,13 +8,27 @@ metadata:
   creationTimestamp: null
   name: repositories.ecr.services.k8s.aws
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.conditions[?(@.type=='Ready')].status
+    name: READY
+    type: string
+  - JSONPath: .status.conditions[?(@.type=='Synced')].status
+    name: SYNCED
+    type: string
+  - JSONPath: .metadata.annotations.crossplane\.io/external-name
+    name: EXTERNAL-NAME
+    type: string
   group: ecr.services.k8s.aws
   names:
+    categories:
+    - crossplane
+    - managed
+    - aws
     kind: Repository
     listKind: RepositoryList
     plural: repositories
     singular: repository
-  scope: Namespaced
+  scope: Cluster
   subresources:
     status: {}
   validation:
@@ -39,7 +53,7 @@ spec:
               - Delete
               type: string
             forProvider:
-              description: RepositorySpecParams defines the desired state of Repository
+              description: RepositoryParameters defines the desired state of Repository
               properties:
                 encryptionConfiguration:
                   properties:
@@ -102,13 +116,12 @@ spec:
           - forProvider
           type: object
         status:
-          description: RepositoryStatus defines the observed state of Repository
+          description: RepositoryStatus defines the observed state of Repository.
           properties:
             atProvider:
-              description: RepositoryExternalStatus defines the observed state of Repository
+              description: RepositoryObservation defines the observed state of Repository
               properties:
                 createdAt:
-                  description: 'TODO(negz): place common Crossplane-y stuff.'
                   format: date-time
                   type: string
                 registryID:
